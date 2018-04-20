@@ -87,12 +87,24 @@ class LondonBot extends Bot {
       println(unhealthyEnemies)
 
       if (unhealthyEnemies.isEmpty) {
-        println("found no enemies, going for the pub")
-        map.find { _.tile == Tavern }.map(_.position).getOrElse(enemies.head.pos)
+        println("found no enemies, going for a mine ")
+        findTakeableMines(input.hero, mapWithCoordinates).map(_.position).getOrElse(enemies.head.pos)
       } else {
         println("found a weak enemy!!!")
         unhealthyEnemies.maxBy(_.mineCount).pos
       }
+    }
+
+    def findTakeableMines(hero: Hero, map: Vector[TileWithPosition]): Option[TileWithPosition] = {
+      map.collectFirst {
+        case t: TileWithPosition if isMineTakeable(t, hero) => t
+      }
+    }
+
+    def isMineTakeable(tileWithPosition:TileWithPosition, hero: Hero): Boolean = tileWithPosition match {
+      case TileWithPosition(Mine(Some(hero)),_) => false
+      case TileWithPosition(Mine(_),_) => true
+      case _ => false
     }
 
     @tailrec
