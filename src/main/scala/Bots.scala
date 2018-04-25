@@ -37,9 +37,9 @@ class LondonBot extends Bot {
     val enemies: Seq[Hero] = input.game.heroes filterNot(_.id == input.hero.id)
     val firstEnemy: Hero = enemies.head
 
-    def findPath(start: Pos, end: Pos, board: Board): Option[PathNode] = {
-      val startNode: PathNode = PathNode(start, heuristicBetween(start, end), 0, None)
-      val visited: Set[PathNode] = Set(startNode)
+    def findPath(start: Set[Pos], end: Pos, board: Board): Option[PathNode] = {
+      val startNodes: Set[PathNode] = start.map((pos: Pos) => PathNode(pos, heuristicBetween(pos, end), 0, None))
+      val visited: Set[PathNode] = startNodes
 
       @tailrec
       def loop(open: Set[PathNode], visited: Set[PathNode]): Option[PathNode] = {
@@ -68,7 +68,7 @@ class LondonBot extends Bot {
         }
       }
 
-      loop(Set(startNode), visited)
+      loop(startNodes, visited)
     }
 
     // convert board to list of positioned tiles
@@ -87,12 +87,24 @@ class LondonBot extends Bot {
       println(unhealthyEnemies)
 
       if (unhealthyEnemies.isEmpty) {
-        println("found no enemies, going for the pub")
-        map.find { _.tile == Tavern }.map(_.position).getOrElse(enemies.head.pos)
+        println("found no enemies, going for a mine ")
+        findTakeableMines(input.hero, mapWithCoordinates).map(_.position).getOrElse(enemies.head.pos)
       } else {
         println("found a weak enemy!!!")
         unhealthyEnemies.maxBy(_.mineCount).pos
       }
+    }
+
+    def findTakeableMines(hero: Hero, map: Vector[TileWithPosition]): Option[TileWithPosition] = {
+      map.collectFirst {
+        case t: TileWithPosition if isMineTakeable(t, hero) => t
+      }
+    }
+
+    def isMineTakeable(tileWithPosition:TileWithPosition, hero: Hero): Boolean = tileWithPosition match {
+      case TileWithPosition(Mine(Some(hero)),_) => false
+      case TileWithPosition(Mine(_),_) => true
+      case _ => false
     }
 
     @tailrec
@@ -102,9 +114,10 @@ class LondonBot extends Bot {
       case PathNode(_,_ , _, Some(x)) => findNext(x)
     }
 
-    val path: Option[PathNode] = findPath(input.hero.pos, findTargetPosition(mapWithCoordinates), input.game.board)
+    val path: Option[PathNode] = findPath(Set(input.hero.pos), findTargetPosition(mapWithCoordinates), input.game.board)
     val neighbors = Set(North, South, West, East) map (x => (input.hero.pos.to(x), x))
     val nextPos: Option[Pos] = path.map(findNext)
+    println(nextPos.map(input.game.board.at))
 
     val destination = neighbors.find(n => nextPos.exists(n._1 ==)).map(_._2).getOrElse(Stay)
     println(s"moving towards ${destination}")
