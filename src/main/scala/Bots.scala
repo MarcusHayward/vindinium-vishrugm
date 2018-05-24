@@ -105,6 +105,11 @@ class LondonBot extends Bot {
       destination getOrElse Stay
     }
 
+    val clearString = "\033[H\033[2J"
+    print(clearString)
+
+    print(Renderer.renderBoard(mapWithCoordinates, input))
+
     goFor(weightedPositions)
   }
 }
