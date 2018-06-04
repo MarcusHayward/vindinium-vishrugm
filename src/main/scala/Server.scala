@@ -12,7 +12,7 @@ final class Server(
   }
 
   def training(turns: Int, map: Option[String] = None): Input = send {
-    Http.post(s"$endpoint/api/training").params(
+    Http.post(s"$endpoint/training").params(
       "key" -> key,
       "turns" -> turns.toString,
       "map" -> map.getOrElse(""))
