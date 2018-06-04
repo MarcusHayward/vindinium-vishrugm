@@ -74,7 +74,7 @@ object Main {
     System.getProperty("key")
   ) match {
       case (_, null)  ⇒ Left("Specify the user key with -Dkey=mySecretKey")
-      case (url, key) ⇒ Right(new Server(url + "/api", key))
+      case (url, key) ⇒ Right(new Server(url.stripSuffix("/") + "/api", key))
     }
 
   def int(str: String) = java.lang.Integer.parseInt(str)

@@ -1,0 +1,13 @@
+version: '2.3'
+services:
+  scalabot:
+    image: quay.io/continuouspipe/scala-base
+    entrypoint: ['sbt']
+    command: []
+    volumes:
+      - .:/app:delegated
+      - scala-ivy2:/root/.ivy2
+      - scala-sbt:/root/.sbt
+volumes:
+  scala-ivy2:
+  scala-sbt:
