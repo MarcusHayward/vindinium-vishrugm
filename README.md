@@ -37,3 +37,13 @@ You can now run your bot like that:
 ```
 vindinium arena 3
 ```
+
+
+## Docker
+
+To run the docker application:
+```
+docker-compose run --rm scalabot -Dserver=http://159.65.169.154:9000/ -Dkey=<key>
+run training 50 m5
+```
+
