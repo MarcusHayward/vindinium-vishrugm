@@ -53,6 +53,10 @@ class LondonBot extends Bot {
                 PathNode(WeightedPosition(bestNode.weightedPos.weight, p), heuristicBetween(heroPosition, WeightedPosition(bestNode.weightedPos.weight, p)), bestNode.g + 1, Some(bestNode))
             }.diff(visited)
 
+            //check if the neighbour is in the open list
+            //if it is, replace it if the new path node is better
+            //neighbours.filter((pathNode: PathNode) => )
+
             loop(open ++ neighbours - bestNode, visited + bestNode)
           }
         }
@@ -70,9 +74,15 @@ class LondonBot extends Bot {
     def weightOfTaverns: Double = 1 - (input.hero.life - 1) / 100d
 
     def findTakeableMines(hero: Hero, map: Vector[TileWithPosition]): Vector[TileWithPosition] = {
-      map.collect {
+      val takeableMines = map.collect {
         case t: TileWithPosition if isMineTakeable(t, hero) => t
       }
+
+      takeableMines.filter((mine: TileWithPosition) => {
+         println(s"filtering on ${mine.position.x}, ${mine.position.y}")
+        val distance = findPath(hero.pos, Set(WeightedPosition(1d, mine.position)), input.game.board).get.g
+        hero.life - distance < 20
+      })
     }
 
     def isMineTakeable(tileWithPosition: TileWithPosition, hero: Hero): Boolean = tileWithPosition match {
