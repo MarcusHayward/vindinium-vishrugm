@@ -53,11 +53,22 @@ class LondonBot extends Bot {
                 PathNode(WeightedPosition(bestNode.weightedPos.weight, p), heuristicBetween(heroPosition, WeightedPosition(bestNode.weightedPos.weight, p)), bestNode.g + 1, Some(bestNode))
             }.diff(visited)
 
-            //check if the neighbour is in the open list
-            //if it is, replace it if the new path node is better
-            //neighbours.filter((pathNode: PathNode) => )
+            val bestNeighbours = neighbours.filter(neighbour => {
+              val existingNeighbour: Option[PathNode] = open.find {
+                case p: PathNode if p.weightedPos.position == neighbour.weightedPos.position => true
+                case _ => false
+              }
+              existingNeighbour.map(p => { p.score > neighbour.score }).getOrElse(true)
+            })
 
-            loop(open ++ neighbours - bestNode, visited + bestNode)
+            val worstExistingNeighbours: Set[PathNode] = bestNeighbours.flatMap(neighbour => {
+              open.find {
+                case p: PathNode if p.weightedPos.position == neighbour.weightedPos.position => true
+                case _ => false
+              }
+            })
+
+            loop(open ++ bestNeighbours -- worstExistingNeighbours - bestNode, visited + bestNode)
           }
         }
       }
