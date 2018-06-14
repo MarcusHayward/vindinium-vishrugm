@@ -90,9 +90,9 @@ class LondonBot extends Bot {
       }
 
       takeableMines.filter((mine: TileWithPosition) => {
-         println(s"filtering on ${mine.position.x}, ${mine.position.y}")
-        val distance = findPath(hero.pos, Set(WeightedPosition(1d, mine.position)), input.game.board).get.g
-        hero.life - distance < 20
+        findPath(hero.pos, Set(WeightedPosition(1d, mine.position)), input.game.board).map(p => {
+          hero.life - p.g > 20
+        }).getOrElse(false)
       })
     }
 
