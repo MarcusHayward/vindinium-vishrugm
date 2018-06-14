@@ -82,7 +82,7 @@ class LondonBot extends Bot {
       1
     }
 
-    def weightOfTaverns: Double = 1 - (input.hero.life - 1) / 100d
+    def weightOfTaverns: Double = ((input.hero.life + 20) / 100d)
 
     def findTakeableMines(hero: Hero, map: Vector[TileWithPosition]): Vector[TileWithPosition] = {
       val takeableMines = map.collect {
