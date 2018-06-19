@@ -53,11 +53,22 @@ class LondonBot extends Bot {
                 PathNode(WeightedPosition(bestNode.weightedPos.weight, p), heuristicBetween(heroPosition, WeightedPosition(bestNode.weightedPos.weight, p)), bestNode.g + 1, Some(bestNode))
             }.diff(visited)
 
-            //check if the neighbour is in the open list
-            //if it is, replace it if the new path node is better
-            //neighbours.filter((pathNode: PathNode) => )
+            val bestNeighbours = neighbours.filter(neighbour => {
+              val existingNeighbour: Option[PathNode] = open.find {
+                case p: PathNode if p.weightedPos.position == neighbour.weightedPos.position => true
+                case _ => false
+              }
+              existingNeighbour.map(p => { p.score > neighbour.score }).getOrElse(true)
+            })
 
-            loop(open ++ neighbours - bestNode, visited + bestNode)
+            val worstExistingNeighbours: Set[PathNode] = bestNeighbours.flatMap(neighbour => {
+              open.find {
+                case p: PathNode if p.weightedPos.position == neighbour.weightedPos.position => true
+                case _ => false
+              }
+            })
+
+            loop(open ++ bestNeighbours -- worstExistingNeighbours - bestNode, visited + bestNode)
           }
         }
       }
@@ -71,7 +82,7 @@ class LondonBot extends Bot {
       1
     }
 
-    def weightOfTaverns: Double = 1 - (input.hero.life - 1) / 100d
+    def weightOfTaverns: Double = ((input.hero.life + 20) / 100d)
 
     def findTakeableMines(hero: Hero, map: Vector[TileWithPosition]): Vector[TileWithPosition] = {
       val takeableMines = map.collect {
@@ -79,9 +90,9 @@ class LondonBot extends Bot {
       }
 
       takeableMines.filter((mine: TileWithPosition) => {
-         println(s"filtering on ${mine.position.x}, ${mine.position.y}")
-        val distance = findPath(hero.pos, Set(WeightedPosition(1d, mine.position)), input.game.board).get.g
-        hero.life - distance < 20
+        findPath(hero.pos, Set(WeightedPosition(1d, mine.position)), input.game.board).map(p => {
+          hero.life - p.g > 20
+        }).getOrElse(false)
       })
     }
 
