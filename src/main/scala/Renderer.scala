@@ -9,26 +9,24 @@ object Renderer {
   val RED = "\u001B[31m"
   val RESET = "\u001B[0m"
 
-  def renderBoard(board: Vector[TileWithPosition], input: Input, skipBoard: Boolean = false): String = {
-    def printPositionedTile(pt: TileWithPosition): String = pt.tile match {
+  def renderBoard(board: Set[WeightedTile], input: Input, skipBoard: Boolean = false): String = {
+    def printPositionedTile(pt: WeightedTile): String = pt.tile match {
       case Wall => s"▓▓▓▓▓"
 //      case Air if dirReason.path.exists(_.positionedTiles.exists(_.pos == pt.pos)) => s"$YELLOW  " + s"${pt.weight}▶".padTo(3, " ").mkString + RESET
-//      case Air => s"  ${pt.weight}"
-      case Air => s"  1  "
-      case Mine(Some(id)) if id == input.hero.id => s"$GREEN  ◧ $id$RESET"
-      case Mine(Some(id)) => s"$CYAN  ◧ $id$RESET"
-      case Mine(None) => s"$CYAN  ◧  $RESET"
-      case Tavern => s"$YELLOW PUB $RESET"
+      case Air => s"  ${pt.weight}  "
+      case Mine(Some(id)) if id == input.hero.id => s"$GREEN  ◧ ${pt.weight} $id$RESET"
+      case Mine(Some(id)) => s"$CYAN  ◧ ${pt.weight} $id$RESET"
+      case Mine(None) => s"$CYAN  ◧ ${pt.weight}  $RESET"
+      case Tavern => s"$YELLOW P ${pt.weight} $RESET"
       case Tile.Hero(id) if id == input.hero.id => s"$GREEN 😀  $RESET"
       case Tile.Hero(id) => s"$RED 😈 $id$RESET"
-//      case _ => s"?${pt.weight}"
-      case _ => s"?1"
+      case _ => s"?${pt.weight}"
     }
 
     val renderedBoard: String =
-      board.foldLeft("") { (s: String, pt: TileWithPosition) =>
+      board.foldLeft("") { (s: String, pt: WeightedTile) =>
         pt match {
-          case TileWithPosition(_, pos) =>
+          case WeightedTile(_, _, pos) =>
             val tileString = s + s"${printPositionedTile(pt).padTo(5, " ").mkString}"
 
             if (pos.y == input.game.board.size - 1) tileString + "\n"
