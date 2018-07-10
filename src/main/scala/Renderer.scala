@@ -9,20 +9,24 @@ object Renderer {
   val RED = "\u001B[31m"
   val RESET = "\u001B[0m"
 
-  def renderBoard(board: Set[WeightedTile], input: Input, skipBoard: Boolean = false): String = {
-    def printPositionedTile(pt: WeightedTile): String = pt.tile match {
-      case Wall => s"▓▓▓▓▓"
-//      case Air if dirReason.path.exists(_.positionedTiles.exists(_.pos == pt.pos)) => s"$YELLOW  " + s"${pt.weight}▶".padTo(3, " ").mkString + RESET
-      case Air => s"  ${pt.weight}  "
-      case Mine(Some(id)) if id == input.hero.id => s"$GREEN  ◧ ${pt.weight} $id$RESET"
-      case Mine(Some(id)) => s"$CYAN  ◧ ${pt.weight} $id$RESET"
-      case Mine(None) => s"$CYAN  ◧ ${pt.weight}  $RESET"
-      case Tavern => s"$YELLOW P ${pt.weight} $RESET"
-      case Tile.Hero(id) if id == input.hero.id => s"$GREEN 😀  $RESET"
-      case Tile.Hero(id) => s"$RED 😈 $id$RESET"
-      case _ => s"?${pt.weight}"
+  def renderBoard(board: Seq[WeightedTile], input: Input, skipBoard: Boolean = false): String = {
+    def printPositionedTile(pt: WeightedTile): String = {
+      val weight = Math.round(pt.weight * 10) / 10d
+      pt.tile match {
+        case Wall => s"▓▓▓▓▓"
+        //      case Air if dirReason.path.exists(_.positionedTiles.exists(_.pos == pt.pos)) => s"$YELLOW  " + s"${pt.weight}▶".padTo(3, " ").mkString + RESET
+        case Air => s" $weight "
+        case Mine(Some(id)) if id == input.hero.id => s"$GREEN $weight $RESET"
+        case Mine(Some(id)) => s"$CYAN $weight $RESET"
+        case Mine(None) => s"$CYAN $weight $RESET"
+        case Tavern => s"$YELLOW $weight $RESET"
+        case Tile.Hero(id) if id == input.hero.id => s"$GREEN  😀  $RESET"
+        case Tile.Hero(id) => s"$RED  $id  $RESET"
+        case _ => s"? $weight "
+      }
     }
 
+    println(input.game.board.size)
     val renderedBoard: String =
       board.foldLeft("") { (s: String, pt: WeightedTile) =>
         pt match {
@@ -35,13 +39,6 @@ object Renderer {
         }
       }
 
-//    val outputBeforeEnd: String = s"Life: ${input.hero.life} | ${dirReason.reason}" + (if (skipBoard) "" else s"\n\n$renderedBoard")
-    val outputBeforeEnd: String = s"Life: ${input.hero.life} |  \n\n$renderedBoard"
-
-    outputBeforeEnd
-//    if (skipBoard) outputBeforeEnd
-//    else if (input.game.turn == input.game.maxTurns - 3) {
-//      outputBeforeEnd + "\33[1A" * (board.size + 3)
-//    } else outputBeforeEnd
+    s"Life: ${input.hero.life} |  \n\n$renderedBoard"
   }
 }
