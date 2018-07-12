@@ -27,8 +27,39 @@ class LondonBot extends Bot {
       )
     }
 
-    def heuristicBetween(start: Pos, end: WeightedTile): Double =
-      Math.abs(start.x - end.position.x) + Math.abs(start.y - end.position.y) / end.weight
+    def weightOfMine: Double = {
+      1
+    }
+
+    def getWeight(life: Int): Double = {
+      val e = 2.71828
+      val modifier = 50d //the higher this is, the more likely I am to go to a tavern
+
+      Math.pow(e, life / modifier) - 1
+    }
+
+    def weightOfTaverns: Double = getWeight(input.hero.life)
+
+
+    def convertTileWithPositionToWeightedTile(tp: TileWithPosition): WeightedTile =
+      tp match {
+        case TileWithPosition(Tavern, position) => WeightedTile(weightOfTaverns, Tavern, position)
+        case TileWithPosition(Mine(id), position) => WeightedTile(weightOfMine, Mine(id), position)
+        case TileWithPosition(a, b) => WeightedTile(1 , a, b)
+      }
+
+    var weightedMap: Seq[WeightedTile] = mapWithCoordinates.map(convertTileWithPositionToWeightedTile)
+
+    def heuristicBetween(start: Pos, end: WeightedTile): Double = {
+      val h = (Math.abs(start.x - end.position.x) + Math.abs(start.y - end.position.y)) * end.weight
+
+      weightedMap = weightedMap.map((wt: WeightedTile) => wt.position match {
+        case end.position => wt.copy(weight = h)
+        case _ => wt
+      })
+
+      h
+    }
 
     val enemies: Seq[Hero] = input.game.heroes filterNot (_.id == input.hero.id)
     val firstEnemy: Hero = enemies.head
@@ -74,12 +105,6 @@ class LondonBot extends Bot {
       loop(startNodes.toSet, visited.toSet)
     }
 
-    def weightOfMine: Double = {
-      1
-    }
-
-    def weightOfTaverns: Double = ((input.hero.life + 20) / 100d)
-
     def findTakeableMines(hero: Hero, map: Seq[WeightedTile]): Seq[WeightedTile] = {
       val takeableMines = map.collect {
         case t: WeightedTile if isMineTakeable(t, hero) => t
@@ -97,17 +122,6 @@ class LondonBot extends Bot {
       case WeightedTile(_, Mine(_), _) => true
       case _ => false
     }
-
-    def convertTileWithPositionToWeightedTile(tp: TileWithPosition): WeightedTile =
-      tp match {
-        case TileWithPosition(Tavern, position) => WeightedTile(weightOfTaverns, Tavern, position)
-        case TileWithPosition(Mine(id), position) => WeightedTile(weightOfMine, Mine(id), position)
-        case TileWithPosition(a, b) => WeightedTile(1, a, b)
-      }
-
-
-    val weightedMap: Seq[WeightedTile] = mapWithCoordinates.map(convertTileWithPositionToWeightedTile)
-    weightedMap.foreach((t: WeightedTile) => println(t.position))
 
     val taverns: Seq[WeightedTile] = weightedMap.filter(_.tile == Tavern)
 
