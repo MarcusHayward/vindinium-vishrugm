@@ -12,28 +12,61 @@ trait Bot {
 }
 
 final case class TileWithPosition(tile: Tile, position: Pos)
+final case class WeightedTile(weight: Double, tile: Tile, position: Pos)
 
 class LondonBot extends Bot {
   override def move(input: Input): Dir = {
-    case class PathNode(weightedPos: WeightedPosition, h: Double, g: Int, parent: Option[PathNode]) {
+    case class PathNode(weightedTile: WeightedTile, h: Double, g: Int, parent: Option[PathNode]) {
       val score: Double = g + h
     }
 
     val mapWithCoordinates: Vector[TileWithPosition] = input.game.board.tiles.zipWithIndex.map { t: (Tile, Int) =>
       TileWithPosition(
         t._1,
-        Pos(t._2 / input.game.board.size, t._2 % input.game.board.size))
+        Pos(t._2 / input.game.board.size, t._2 % input.game.board.size)
+      )
     }
 
-    def heuristicBetween(start: Pos, end: WeightedPosition): Double =
-      Math.abs(start.x - end.position.x) + Math.abs(start.y - end.position.y) / end.weight
+    def weightOfMine: Double = {
+      1
+    }
+
+    def getWeight(life: Int): Double = {
+      val e = 2.71828
+      val modifier = 50d //the higher this is, the more likely I am to go to a tavern
+
+      Math.pow(e, life / modifier) - 1
+    }
+
+    def weightOfTaverns: Double = getWeight(input.hero.life)
+
+
+    def convertTileWithPositionToWeightedTile(tp: TileWithPosition): WeightedTile =
+      tp match {
+        case TileWithPosition(Tavern, position) => WeightedTile(weightOfTaverns, Tavern, position)
+        case TileWithPosition(Mine(id), position) => WeightedTile(weightOfMine, Mine(id), position)
+        case TileWithPosition(a, b) => WeightedTile(1 , a, b)
+      }
+
+    var weightedMap: Seq[WeightedTile] = mapWithCoordinates.map(convertTileWithPositionToWeightedTile)
+
+    def heuristicBetween(start: Pos, end: WeightedTile): Double = {
+      val h = (Math.abs(start.x - end.position.x) + Math.abs(start.y - end.position.y)) * end.weight
+
+      weightedMap = weightedMap.map((wt: WeightedTile) => wt.position match {
+        case end.position => wt.copy(weight = h)
+        case _ => wt
+      })
+
+      h
+    }
 
     val enemies: Seq[Hero] = input.game.heroes filterNot (_.id == input.hero.id)
     val firstEnemy: Hero = enemies.head
 
-    def findPath(heroPosition: Pos, destinations: Set[WeightedPosition], board: Board): Option[PathNode] = {
-      val startNodes: Set[PathNode] = destinations.map((weightedPos: WeightedPosition) => PathNode(weightedPos, heuristicBetween(heroPosition, weightedPos), 0, None))
-      val visited: Set[PathNode] = startNodes
+    def findPath(heroPosition: Pos, destinations: Seq[WeightedTile], board: Board): Option[PathNode] = {
+      val startNodes: Seq[PathNode] = destinations.map((weightedPos: WeightedTile) => PathNode(weightedPos, heuristicBetween(heroPosition, weightedPos), 0, None))
+      val visited: Seq[PathNode] = startNodes
 
       @tailrec
       def loop(open: Set[PathNode], visited: Set[PathNode]): Option[PathNode] = {
@@ -43,85 +76,71 @@ class LondonBot extends Bot {
         } else {
           val bestNode: PathNode = open.minBy(_.score)
 
-          if (bestNode.weightedPos.position == heroPosition) {
+          if (bestNode.weightedTile.position == heroPosition) {
             Some(bestNode)
           } else {
-            val neighbours: Set[PathNode] = bestNode.weightedPos.position.neighbors.collect {
+            val neighbours = bestNode.weightedTile.position.neighbors.collect {
               case p: Pos if board.at(p).exists(Air ==) =>
-                PathNode(WeightedPosition(bestNode.weightedPos.weight, p), heuristicBetween(heroPosition, WeightedPosition(bestNode.weightedPos.weight, p)), bestNode.g + 1, Some(bestNode))
+                PathNode(WeightedTile(bestNode.weightedTile.weight, input.game.board.at(p).get, p), heuristicBetween(heroPosition, WeightedTile(bestNode.weightedTile.weight, bestNode.weightedTile.tile, p)), bestNode.g + 1, Some(bestNode))
               case p: Pos if p == heroPosition =>
-                PathNode(WeightedPosition(bestNode.weightedPos.weight, p), heuristicBetween(heroPosition, WeightedPosition(bestNode.weightedPos.weight, p)), bestNode.g + 1, Some(bestNode))
+                PathNode(WeightedTile(bestNode.weightedTile.weight, input.game.board.at(p).get, p), heuristicBetween(heroPosition, WeightedTile(bestNode.weightedTile.weight, bestNode.weightedTile.tile, p)), bestNode.g + 1, Some(bestNode))
             }.diff(visited)
 
-            val bestNeighbours = neighbours.filter(neighbour => {
-              val existingNeighbour: Option[PathNode] = open.find {
-                case p: PathNode if p.weightedPos.position == neighbour.weightedPos.position => true
-                case _ => false
+            val bestNeighbourAndOpenNode = neighbours.map(neighbour => {
+              val existingNeighbour: Option[PathNode] = open.collectFirst {
+                case p: PathNode if p.weightedTile.position == neighbour.weightedTile.position => p
               }
-              existingNeighbour.map(p => { p.score > neighbour.score }).getOrElse(true)
-            })
+              (neighbour, existingNeighbour)
+            }).filter { case (n, e) => e.forall(_.score > n.score) }
 
-            val worstExistingNeighbours: Set[PathNode] = bestNeighbours.flatMap(neighbour => {
-              open.find {
-                case p: PathNode if p.weightedPos.position == neighbour.weightedPos.position => true
-                case _ => false
-              }
-            })
+            val bestNeighbours = bestNeighbourAndOpenNode.map(_._1)
+
+            val worstExistingNeighbours: Set[PathNode] = bestNeighbourAndOpenNode.flatMap(_._2)
 
             loop(open ++ bestNeighbours -- worstExistingNeighbours - bestNode, visited + bestNode)
           }
         }
       }
 
-      loop(startNodes, visited)
+      loop(startNodes.toSet, visited.toSet)
     }
 
-    case class WeightedPosition(weight: Double, position: Pos)
-
-    def weightOfMine: Double = {
-      1
-    }
-
-    def weightOfTaverns: Double = ((input.hero.life + 20) / 100d)
-
-    def findTakeableMines(hero: Hero, map: Vector[TileWithPosition]): Vector[TileWithPosition] = {
+    def findTakeableMines(hero: Hero, map: Seq[WeightedTile]): Seq[WeightedTile] = {
       val takeableMines = map.collect {
-        case t: TileWithPosition if isMineTakeable(t, hero) => t
+        case t: WeightedTile if isMineTakeable(t, hero) => t
       }
 
-      takeableMines.filter((mine: TileWithPosition) => {
-        findPath(hero.pos, Set(WeightedPosition(1d, mine.position)), input.game.board).map(p => {
+      takeableMines.filter((mine: WeightedTile) => {
+        findPath(hero.pos, Seq(WeightedTile(1d, mine.tile, mine.position)), input.game.board).map(p => {
           hero.life - p.g > 20
         }).getOrElse(false)
       })
     }
 
-    def isMineTakeable(tileWithPosition: TileWithPosition, hero: Hero): Boolean = tileWithPosition match {
-      case TileWithPosition(Mine(Some(hero)), _) => false
-      case TileWithPosition(Mine(_), _) => true
+    def isMineTakeable(tileWithPosition: WeightedTile, hero: Hero): Boolean = tileWithPosition match {
+      case WeightedTile(_, Mine(Some(hero)), _) => false
+      case WeightedTile(_, Mine(_), _) => true
       case _ => false
     }
 
-    val taverns: Set[Pos] = mapWithCoordinates.collect {
-      case TileWithPosition(Tavern, position) => position
-    }.toSet
+    val taverns: Seq[WeightedTile] = weightedMap.filter(_.tile == Tavern)
 
-    val minesPositions: Set[Pos] = findTakeableMines(input.hero, mapWithCoordinates).map(_.position).toSet
+    val minesPositions: Seq[WeightedTile] = findTakeableMines(input.hero, weightedMap)
 
-    val weightedPositions: Set[WeightedPosition] = taverns.map(WeightedPosition(weightOfTaverns, _)) ++ minesPositions.map(WeightedPosition(weightOfMine, _))
+    val weightedPositions: Seq[WeightedTile] = taverns ++ minesPositions
 
-    def goFor(possibleDestinations: Set[WeightedPosition]): Dir = {
+    def goFor(possibleDestinations: Seq[WeightedTile]): Dir = {
       val path: Option[PathNode] = findPath(input.hero.pos, possibleDestinations, input.game.board)
-      val neighbors: Set[(Pos, bot.Dir.Value)] =
-        Set(North, South, West, East) map (x => (input.hero.pos.to(x), x))
+      val neighbors: Seq[(Pos, bot.Dir.Value)] =
+        List(North, South, West, East) map (x => (input.hero.pos.to(x), x))
 
-      def getDirectionForPos(neighbors: Set[(Pos, Dir)], pos: Pos): Dir =
+      def getDirectionForPos(neighbors: Seq[(Pos, Dir)], pos: Pos): Dir =
         neighbors.find(n => pos == n._1).map(_._2).getOrElse(Stay)
 
       val destination: Option[Dir] = for {
         pathNode <- path
         parent <- pathNode.parent
-      } yield getDirectionForPos(neighbors, parent.weightedPos.position)
+      } yield getDirectionForPos(neighbors, parent.weightedTile.position)
 
       destination getOrElse Stay
     }
@@ -129,7 +148,7 @@ class LondonBot extends Bot {
     val clearString = "\033[H\033[2J"
     print(clearString)
 
-    print(Renderer.renderBoard(mapWithCoordinates, input))
+    print(Renderer.renderBoard(weightedMap, input))
 
     goFor(weightedPositions)
   }

@@ -9,26 +9,28 @@ object Renderer {
   val RED = "\u001B[31m"
   val RESET = "\u001B[0m"
 
-  def renderBoard(board: Vector[TileWithPosition], input: Input, skipBoard: Boolean = false): String = {
-    def printPositionedTile(pt: TileWithPosition): String = pt.tile match {
-      case Wall => s"▓▓▓▓▓"
-//      case Air if dirReason.path.exists(_.positionedTiles.exists(_.pos == pt.pos)) => s"$YELLOW  " + s"${pt.weight}▶".padTo(3, " ").mkString + RESET
-//      case Air => s"  ${pt.weight}"
-      case Air => s"  1  "
-      case Mine(Some(id)) if id == input.hero.id => s"$GREEN  ◧ $id$RESET"
-      case Mine(Some(id)) => s"$CYAN  ◧ $id$RESET"
-      case Mine(None) => s"$CYAN  ◧  $RESET"
-      case Tavern => s"$YELLOW PUB $RESET"
-      case Tile.Hero(id) if id == input.hero.id => s"$GREEN 😀  $RESET"
-      case Tile.Hero(id) => s"$RED 😈 $id$RESET"
-//      case _ => s"?${pt.weight}"
-      case _ => s"?1"
+  def renderBoard(board: Seq[WeightedTile], input: Input, skipBoard: Boolean = false): String = {
+    def printPositionedTile(pt: WeightedTile): String = {
+      val weight = Math.round(pt.weight * 10) / 10d
+      pt.tile match {
+        case Wall => s"▓▓▓▓▓"
+        //      case Air if dirReason.path.exists(_.positionedTiles.exists(_.pos == pt.pos)) => s"$YELLOW  " + s"${pt.weight}▶".padTo(3, " ").mkString + RESET
+        case Air => s" $weight "
+        case Mine(Some(id)) if id == input.hero.id => s"$GREEN $weight $RESET"
+        case Mine(Some(id)) => s"$CYAN $weight $RESET"
+        case Mine(None) => s"$CYAN $weight $RESET"
+        case Tavern => s"$YELLOW $weight $RESET"
+        case Tile.Hero(id) if id == input.hero.id => s"$GREEN  😀  $RESET"
+        case Tile.Hero(id) => s"$RED  $id  $RESET"
+        case _ => s"? $weight "
+      }
     }
 
+    println(input.game.board.size)
     val renderedBoard: String =
-      board.foldLeft("") { (s: String, pt: TileWithPosition) =>
+      board.foldLeft("") { (s: String, pt: WeightedTile) =>
         pt match {
-          case TileWithPosition(_, pos) =>
+          case WeightedTile(_, _, pos) =>
             val tileString = s + s"${printPositionedTile(pt).padTo(5, " ").mkString}"
 
             if (pos.y == input.game.board.size - 1) tileString + "\n"
@@ -37,13 +39,6 @@ object Renderer {
         }
       }
 
-//    val outputBeforeEnd: String = s"Life: ${input.hero.life} | ${dirReason.reason}" + (if (skipBoard) "" else s"\n\n$renderedBoard")
-    val outputBeforeEnd: String = s"Life: ${input.hero.life} |  \n\n$renderedBoard"
-
-    outputBeforeEnd
-//    if (skipBoard) outputBeforeEnd
-//    else if (input.game.turn == input.game.maxTurns - 3) {
-//      outputBeforeEnd + "\33[1A" * (board.size + 3)
-//    } else outputBeforeEnd
+    s"Life: ${input.hero.life} |  \n\n$renderedBoard"
   }
 }
